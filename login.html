@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>تسجيل الدخول | EOT PARTNERS</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="firebase-config.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Cairo', 'Segoe UI', Tahoma, sans-serif;
+      background: linear-gradient(135deg, #0a0e14 0%, #1a2740 50%, #0a0e14 100%);
+      min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      color: #FFF; padding: 20px;
+    }
+
+    .login-container {
+      background: rgba(255,255,255,0.03); border: 1px solid rgba(212,175,55,0.2);
+      border-radius: 24px; padding: 35px 28px; width: 100%; max-width: 420px;
+      backdrop-filter: blur(10px); box-shadow: 0 20px 50px rgba(0,0,0,0.4);
+    }
+
+    .logo-section { text-align: center; margin-bottom: 28px; }
+    .logo-section .logo { font-size: 26px; font-weight: 800; letter-spacing: 2px; color: #FFF; text-decoration: none; }
+    .logo-section .logo span { color: #D4AF37; }
+    .logo-section p { font-size: 12px; color: #8E9AAF; margin-top: 6px; }
+
+    .input-group { margin-bottom: 16px; }
+    .input-group label { display: block; font-size: 11px; color: #A0AAB8; margin-bottom: 6px; font-weight: 600; }
+    .input-group input {
+      width: 100%; padding: 14px 16px; background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08); border-radius: 14px;
+      color: #FFF; font-size: 14px; font-family: inherit; transition: 0.3s;
+    }
+    .input-group input:focus { outline: none; border-color: #D4AF37; background: rgba(212,175,55,0.04); }
+    .input-group input::placeholder { color: #555; }
+
+    .btn-submit {
+      width: 100%; padding: 15px; background: linear-gradient(135deg, #D4AF37, #b8941f);
+      color: #000; border: none; border-radius: 14px; font-weight: 700; font-size: 15px;
+      cursor: pointer; font-family: inherit; transition: 0.3s; margin-bottom: 12px;
+    }
+    .btn-submit:hover { background: #e0bc3f; }
+    .btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .links-row { display: flex; justify-content: space-between; align-items: center; font-size: 11px; }
+    .links-row a { color: #D4AF37; text-decoration: none; font-weight: 600; cursor: pointer; }
+    .links-row a:hover { text-decoration: underline; }
+    .links-row span { color: #8E9AAF; }
+
+    .alert-msg {
+      padding: 12px 16px; border-radius: 12px; font-size: 12px; text-align: center;
+      margin-bottom: 14px; display: none; font-weight: 600;
+    }
+    .alert-error { background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.2); color: #F87171; }
+    .alert-success { background: rgba(74,222,128,0.08); border: 1px solid rgba(74,222,128,0.2); color: #4ADE80; }
+
+    .loading-spinner {
+      display: none; width: 20px; height: 20px; border: 2px solid rgba(0,0,0,0.3);
+      border-top-color: #000; border-radius: 50%; animation: spin 0.6s linear infinite;
+      margin: 0 auto;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* نافذة استعادة كلمة المرور */
+    .reset-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.85); z-index: 999;
+      align-items: center; justify-content: center; padding: 20px;
+    }
+    .reset-box {
+      background: #0F1219; border: 1px solid rgba(212,175,55,0.25);
+      border-radius: 20px; padding: 28px 22px; width: 100%; max-width: 380px;
+      text-align: center;
+    }
+    .reset-box h3 { color: #D4AF37; margin-bottom: 6px; font-size: 18px; }
+    .reset-box p { font-size: 11px; color: #8E9AAF; margin-bottom: 16px; }
+    .reset-box input {
+      width: 100%; padding: 13px; background: #1A1E28;
+      border: 1px solid rgba(255,255,255,0.08); border-radius: 12px;
+      color: #FFF; font-size: 14px; text-align: center; font-family: inherit;
+      margin-bottom: 12px;
+    }
+    .reset-box input:focus { outline: none; border-color: #D4AF37; }
+    .reset-box .btn-gold {
+      width: 100%; padding: 13px; background: #D4AF37; color: #000;
+      border: none; border-radius: 12px; font-weight: 700; font-size: 14px;
+      cursor: pointer; font-family: inherit; margin-bottom: 8px;
+    }
+    .reset-box .btn-close {
+      width: 100%; padding: 10px; background: transparent;
+      border: 1px solid rgba(255,255,255,0.08); color: #8E9AAF;
+      border-radius: 12px; cursor: pointer; font-family: inherit;
+    }
+  </style>
+</head>
+<body>
+
+<div class="login-container">
+  <div class="logo-section">
+    <a href="dashboard-ar.html" class="logo">EOT<span> PARTNERS</span></a>
+    <p>تسجيل الدخول إلى حسابك</p>
+  </div>
+
+  <div class="alert-msg" id="alertMsg"></div>
+
+  <div class="input-group">
+    <label>البريد الإلكتروني</label>
+    <input type="email" id="email" placeholder="example@email.com">
+  </div>
+
+  <div class="input-group">
+    <label>كلمة المرور</label>
+    <input type="password" id="password" placeholder="********">
+  </div>
+
+  <button class="btn-submit" id="submitBtn" onclick="handleLogin()">
+    <span id="btnText">تسجيل الدخول</span>
+    <div class="loading-spinner" id="spinner"></div>
+  </button>
+
+  <div class="links-row">
+    <a onclick="openReset()">نسيت كلمة المرور؟</a>
+    <span>|</span>
+    <a href="register.html">إنشاء حساب جديد</a>
+  </div>
+</div>
+
+<!-- نافذة استعادة كلمة المرور -->
+<div class="reset-overlay" id="resetOverlay" onclick="if(event.target===this)closeReset()">
+  <div class="reset-box">
+    <h3><i class="fas fa-lock"></i> استعادة كلمة المرور</h3>
+    <p>أدخل بريدك الإلكتروني وسنرسل لك رابط إعادة تعيين كلمة المرور</p>
+    <input type="email" id="resetEmail" placeholder="example@email.com">
+    <div class="alert-msg" id="resetMsg"></div>
+    <button class="btn-gold" onclick="sendResetEmail()">إرسال الرابط</button>
+    <button class="btn-close" onclick="closeReset()">إلغاء</button>
+  </div>
+</div>
+
+<script>
+  function showAlert(msg, type) {
+    const el = document.getElementById('alertMsg');
+    el.textContent = msg;
+    el.className = 'alert-msg ' + (type === 'error' ? 'alert-error' : 'alert-success');
+    el.style.display = 'block';
+  }
+
+  function setLoading(loading) {
+    const btn = document.getElementById('submitBtn');
+    const text = document.getElementById('btnText');
+    const spinner = document.getElementById('spinner');
+    if (loading) {
+      btn.disabled = true; text.style.display = 'none'; spinner.style.display = 'block';
+    } else {
+      btn.disabled = false; text.style.display = 'inline'; spinner.style.display = 'none';
+    }
+  }
+
+  async function handleLogin() {
+    document.getElementById('alertMsg').style.display = 'none';
+
+    const email = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+
+    if (!email) { showAlert('يرجى إدخال البريد الإلكتروني', 'error'); return; }
+    if (!password) { showAlert('يرجى إدخال كلمة المرور', 'error'); return; }
+
+    setLoading(true);
+
+    try {
+      const userCredential = await firebase.auth().signInWithEmailAndPassword(email, password);
+      const userId = userCredential.user.uid;
+
+      const userDoc = await firebase.firestore().collection('users').doc(userId).get();
+
+      if (userDoc.exists) {
+        const userData = userDoc.data();
+        const sessionData = {
+          id: userId,
+          fullName: userData.fullName,
+          email: userData.email,
+          refCode: userData.refCode,
+          joinDate: userData.joinDate
+        };
+        localStorage.setItem('eot_session', JSON.stringify(sessionData));
+
+        showAlert('تم تسجيل الدخول بنجاح! جاري تحويلك...', 'success');
+        setTimeout(() => { window.location.href = 'dashboard-ar.html'; }, 1200);
+      } else {
+        showAlert('بيانات المستخدم غير موجودة', 'error');
+      }
+    } catch (error) {
+      if (error.code === 'auth/user-not-found') {
+        showAlert('لم يتم العثور على حساب بهذا البريد الإلكتروني', 'error');
+      } else if (error.code === 'auth/wrong-password') {
+        showAlert('كلمة المرور غير صحيحة', 'error');
+      } else {
+        showAlert('حدث خطأ أثناء تسجيل الدخول', 'error');
+      }
+    }
+
+    setLoading(false);
+  }
+
+  // ========== استعادة كلمة المرور ==========
+  function openReset() {
+    document.getElementById('resetOverlay').style.display = 'flex';
+    document.getElementById('resetMsg').style.display = 'none';
+    document.getElementById('resetEmail').value = document.getElementById('email').value;
+  }
+
+  function closeReset() {
+    document.getElementById('resetOverlay').style.display = 'none';
+  }
+
+  async function sendResetEmail() {
+    const email = document.getElementById('resetEmail').value.trim();
+    const msgEl = document.getElementById('resetMsg');
+
+    if (!email) {
+      msgEl.textContent = 'يرجى إدخال البريد الإلكتروني';
+      msgEl.className = 'alert-msg alert-error';
+      msgEl.style.display = 'block';
+      return;
+    }
+
+    try {
+      await firebase.auth().sendPasswordResetEmail(email);
+      msgEl.textContent = 'تم إرسال رابط إعادة التعيين إلى بريدك الإلكتروني';
+      msgEl.className = 'alert-msg alert-success';
+      msgEl.style.display = 'block';
+      setTimeout(() => { closeReset(); }, 2500);
+    } catch (error) {
+      if (error.code === 'auth/user-not-found') {
+        msgEl.textContent = 'لا يوجد حساب بهذا البريد الإلكتروني';
+      } else {
+        msgEl.textContent = 'حدث خطأ. حاول مرة أخرى';
+      }
+      msgEl.className = 'alert-msg alert-error';
+      msgEl.style.display = 'block';
+    }
+  }
+</script>
+
+</body>
+</html>

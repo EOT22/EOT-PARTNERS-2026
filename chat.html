@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>الدعم الفني | EOT PARTNERS</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="firebase-config.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Cairo', 'Segoe UI', Tahoma, sans-serif;
+      background: #0a0e14;
+      color: #E8EDF2;
+      height: 100vh;
+      display: flex; flex-direction: column;
+    }
+
+    .chat-topbar {
+      background: #111620; border-bottom: 1px solid rgba(212,175,55,0.15);
+      padding: 14px 16px; display: flex; align-items: center; gap: 12px;
+      position: sticky; top: 0; z-index: 100;
+    }
+    .back-btn {
+      width: 36px; height: 36px; background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08); border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      color: #D4AF37; font-size: 16px; cursor: pointer;
+      transition: 0.3s; text-decoration: none;
+    }
+    .back-btn:hover { background: rgba(212,175,55,0.1); }
+    .chat-topbar .agent-info { flex: 1; }
+    .chat-topbar .agent-name { font-size: 14px; font-weight: 700; color: #FFF; }
+    .chat-topbar .agent-status { font-size: 10px; color: #4ADE80; }
+    .chat-topbar .logo { font-size: 18px; font-weight: 800; color: #FFF; text-decoration: none; }
+    .chat-topbar .logo span { color: #D4AF37; }
+
+    .chat-body {
+      flex: 1; overflow-y: auto; padding: 16px;
+      display: flex; flex-direction: column; gap: 10px;
+      background: #06080C;
+    }
+    .msg {
+      max-width: 85%; padding: 10px 14px; border-radius: 16px;
+      font-size: 12px; line-height: 1.8; animation: msgIn 0.3s ease;
+    }
+    @keyframes msgIn { from{opacity:0;transform:translateY(8px);} to{opacity:1;transform:translateY(0);} }
+    .msg.received { align-self: flex-start; background: #1a1f2b; color: #E8EDF2; border-bottom-right-radius: 4px; }
+    .msg.sent { align-self: flex-end; background: rgba(212,175,55,0.12); color: #FFF; border: 1px solid rgba(212,175,55,0.2); border-bottom-left-radius: 4px; }
+    .msg .msg-time { font-size: 8px; color: #6B7280; margin-top: 6px; text-align: left; }
+
+    .typing-indicator {
+      align-self: flex-start; padding: 14px 18px;
+      background: #1a1f2b; border-radius: 16px;
+      display: flex; gap: 5px; display: none;
+    }
+    .typing-indicator span {
+      width: 8px; height: 8px; background: #D4AF37;
+      border-radius: 50%; animation: typingBounce 1.4s infinite;
+    }
+    .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+    .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes typingBounce { 0%,80%,100%{opacity:0.3;transform:translateY(0);} 40%{opacity:1;transform:translateY(-6px);} }
+
+    .quick-options {
+      padding: 12px 16px; background: #0a0e14;
+      border-top: 1px solid rgba(255,255,255,0.04);
+      display: flex; flex-direction: column; gap: 6px;
+      max-height: 320px; overflow-y: auto;
+    }
+    .option-btn {
+      width: 100%; padding: 13px 14px; text-align: right;
+      background: rgba(212,175,55,0.06); border: 1px solid rgba(212,175,55,0.15);
+      border-radius: 12px; color: #D4AF37; font-size: 12px;
+      font-family: inherit; cursor: pointer; transition: 0.3s;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .option-btn:hover { background: rgba(212,175,55,0.15); border-color: #D4AF37; }
+    .option-btn:active { transform: scale(0.97); }
+    .option-btn .opt-icon { font-size: 18px; width: 24px; text-align: center; }
+    .option-btn.back-option { background: rgba(255,255,255,0.03); color: #A09070; border-color: rgba(255,255,255,0.06); }
+
+    .contact-form {
+      padding: 12px 16px; background: #0a0e14;
+      border-top: 1px solid rgba(255,255,255,0.04);
+    }
+    .contact-form input, .contact-form textarea {
+      width: 100%; padding: 12px; background: #1A1E28;
+      border: 1px solid rgba(255,255,255,0.08); border-radius: 10px;
+      color: #FFF; font-size: 12px; font-family: inherit; margin-bottom: 8px;
+    }
+    .contact-form input:focus, .contact-form textarea:focus { outline: none; border-color: #D4AF37; }
+    .contact-form textarea { min-height: 80px; resize: vertical; }
+    .contact-form .send-btn {
+      width: 100%; padding: 12px; background: #D4AF37; color: #000;
+      border: none; border-radius: 10px; font-weight: 700; font-size: 13px;
+      cursor: pointer; font-family: inherit;
+    }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+
+<div class="chat-topbar">
+  <a href="javascript:history.back()" class="back-btn"><i class="fas fa-arrow-right"></i></a>
+  <div class="agent-info">
+    <div class="agent-name">EOT PARTNERS - الدعم الفني</div>
+    <div class="agent-status"><i class="fas fa-circle"></i> متصل الآن</div>
+  </div>
+  <a href="dashboard-ar.html" class="logo">EOT<span> PARTNERS</span></a>
+</div>
+
+<div class="chat-body" id="chatBody">
+  <div class="typing-indicator" id="typingIndicator">
+    <span></span><span></span><span></span>
+  </div>
+</div>
+
+<div class="quick-options" id="quickOptions"></div>
+<div class="contact-form hidden" id="contactForm">
+  <input type="text" id="cfName" placeholder="الاسم الكامل">
+  <input type="email" id="cfEmail" placeholder="البريد الإلكتروني">
+  <textarea id="cfMessage" placeholder="اكتب رسالتك هنا..."></textarea>
+  <button class="send-btn" onclick="submitContact()"><i class="fas fa-paper-plane"></i> إرسال الرسالة</button>
+  <button class="option-btn back-option" onclick="showCategories()" style="margin-top:6px;">↩️ رجوع</button>
+</div>
+
+<script>
+  let chatLang = 'ar';
+  
+  (function() {
+    emailjs.init("mz2N1H12HeeZMHSpy");
+  })();
+
+  const chatData = {
+    ar: {
+      welcome: 'مرحباً بك في EOT PARTNERS!<br><br>نحن شركة إدارة واستثمار مالي متكاملة نقدم خدمات متقدمة في مجال إدارة رؤوس الأموال وتطوير الحلول الاستثمارية. كيف يمكننا مساعدتك اليوم؟',
+      categories: [
+        { icon: '💰', title: 'الإيداع والسحب', id: 'deposit' },
+        { icon: '📈', title: 'الاستثمار والشراكة', id: 'invest' },
+        { icon: '👤', title: 'الحساب والتوثيق', id: 'account' },
+        { icon: '👥', title: 'الإحالات والمكافآت', id: 'referral' },
+        { icon: '🔒', title: 'الأمان والخصوصية', id: 'security' },
+        { icon: '🏢', title: 'عن الشركة', id: 'about' },
+        { icon: '💬', title: 'لم أحصل على إجابتي', id: 'noanswer' }
+      ],
+      back: '↩️ رجوع إلى القائمة الرئيسية',
+      questions: {
+        deposit: {
+          title: '💰 الإيداع والسحب',
+          list: [
+            { q: 'ما هي طرق الإيداع المتاحة؟', a: 'نوفر طرق إيداع متعددة لتناسب جميع العملاء حول العالم:<br><br>💳 <b>بطاقات الائتمان والخصم:</b> Visa, Mastercard - فوري<br>🏦 <b>تحويل بنكي:</b> SWIFT, IBAN, SEPA - 1-3 أيام عمل<br>💰 <b>محافظ إلكترونية:</b> PayPal, Skrill, Neteller, Payoneer - فوري<br>📱 <b>Apple Pay / Google Pay:</b> دفع سريع بالجوال<br>🏢 <b>ودائع بنكية:</b> إيداع مباشر في فروع البنوك المعتمدة - 24 ساعة<br>📄 <b>شيكات مصرفية:</b> شيكات معتمدة - 3-5 أيام عمل<br>₿ <b>عملات رقمية:</b> USDT, Bitcoin, Ethereum, BNB, XRP وغيرها' },
+            { q: 'ما هي طرق السحب المتاحة؟', a: 'نوفر طرق سحب متعددة وآمنة:<br><br>🏦 <b>تحويل بنكي:</b> SWIFT, IBAN, SEPA - 2-5 أيام عمل<br>💰 <b>محافظ إلكترونية:</b> PayPal, Skrill, Payoneer - 24 ساعة<br>💵 <b>USDT:</b> TRC20, ERC20, BEP20 - 24 ساعة<br>📱 <b>Apple Pay / Google Pay:</b> 24-48 ساعة<br><br>الحد الأدنى للسحب: 100 دولار. تتم المعالجة خلال 24 ساعة عمل.' },
+            { q: 'كم يستغرق وصول الإيداع؟', a: 'مدة وصول الإيداع حسب الطريقة:<br><br>💳 بطاقات الائتمان: فوري (ثوانٍ)<br>💰 محافظ إلكترونية: فوري<br>₿ عملات رقمية: بعد تأكيد الشبكة (10-60 دقيقة)<br>🏦 تحويل بنكي: 1-3 أيام عمل<br>📄 شيكات: 3-5 أيام عمل<br><br>يصلك إشعار فور إضافة المبلغ إلى حسابك.' },
+            { q: 'ما هو الحد الأدنى للإيداع؟', a: 'الحدود الدنيا حسب طريقة الإيداع:<br><br>💳 بطاقات: 50 دولار<br>💰 محافظ إلكترونية: 10 دولار<br>🏦 تحويل بنكي: 500 دولار<br>₿ USDT: 10 USDT<br>₿ Bitcoin: 0.0005 BTC<br><br>لا يوجد حد أقصى للإيداع.' },
+            { q: 'ما هي رسوم الإيداع والسحب؟', a: '✅ <b>الإيداع:</b> مجاني بالكامل لجميع طرق الإيداع.<br><br>💲 <b>رسوم السحب:</b><br>• تحويل بنكي: 25 دولار (ثابتة)<br>• محافظ إلكترونية: 2% من المبلغ<br>• USDT: رسوم شبكة blockchain فقط<br>• Apple/Google Pay: 1.5%<br><br>الرسوم تظهر بوضوح قبل تأكيد أي عملية.' },
+            { q: 'كيف أتأكد من وصول الإيداع؟', a: 'بعد إتمام عملية الإيداع بنجاح:<br><br>1. يظهر المبلغ في <b>سجل المعاملات</b> خلال المدة المحددة<br>2. يصلك <b>إشعار فوري</b> داخل المنصة<br>3. يتم تحديث <b>رصيد محفظتك</b> تلقائياً<br>4. يمكنك مراجعة <b>صفحة المحفظة</b> للتأكد<br><br>في حال تأخر الإيداع، يرجى التواصل مع الدعم الفني.' },
+            { q: 'هل يمكنني الإيداع بعملة غير الدولار؟', a: 'نعم، نقبل الإيداع بعملات متعددة:<br><br>💵 <b>عملات ورقية:</b> USD, EUR, GBP, CHF, AUD, CAD<br>₿ <b>عملات رقمية:</b> USDT, BTC, ETH, BNB, XRP, SOL, ADA<br><br>يتم تحويل المبلغ تلقائياً إلى ما يعادله بالدولار الأمريكي حسب سعر الصرف لحظة الإيداع.' }
+          ]
+        },
+        invest: {
+          title: '📈 الاستثمار والشراكة',
+          list: [
+            { q: 'كيف أبدأ الاستثمار؟', a: 'للبدء في الاستثمار، يجب أولاً:<br><br>1. <b>تسجيل حساب</b> وتوثيقه<br>2. <b>الاشتراك في برنامج الشراكة</b> (إحدى الخطط السبع)<br>3. <b>مرور 30 يوماً</b> من تاريخ التسجيل<br>4. <b>إيداع المبلغ</b> المناسب في محفظتك<br>5. الذهاب إلى <b>صفحة الاستثمار</b> واختيار القطاع<br><br>⚠️ <b>تنبيه مهم:</b> لا يمكنك الاستثمار قبل استيفاء شروط الشراكة.' },
+            { q: 'ما هي شروط الأهلية للاستثمار؟', a: 'يجب استيفاء <b>3 شروط أساسية</b> قبل الاستثمار:<br><br>1️⃣ <b>اشتراك نشط في برنامج الشراكة</b><br>يجب أن يكون لديك اشتراك فعال في إحدى خطط الشراكة السبع.<br><br>2️⃣ <b>عضو نشط لمدة 30 يوماً</b><br>يجب مرور 30 يوماً على الأقل من تاريخ تسجيلك.<br><br>3️⃣ <b>رصيد كافٍ في المحفظة</b><br>يجب أن تحتوي محفظتك على الحد الأدنى المطلوب للقطاع.<br><br>✅ عند استيفاء الشروط الثلاثة، يمكنك الاستثمار فوراً.' },
+            { q: 'ما هي خطط الشراكة المتاحة؟', a: 'نوفر 7 خطط شراكة مرنة:<br><br>💎 <b>خطة 100$:</b> شهر واحد - ربح يومي 1$ - عائد 130%<br>💎 <b>خطة 180$:</b> شهر واحد - ربح يومي 2$ - عائد 133%<br>💎 <b>خطة 200$:</b> 3 أشهر - ربح يومي 6$ - عائد 370% ⭐ الأكثر طلباً<br>💎 <b>خطة 450$:</b> 3 أشهر - ربح يومي 17$ - عائد 400%<br>💎 <b>خطة 1300$:</b> 6 أشهر - ربح يومي 40$ - عائد 515%<br>💎 <b>خطة 2100$:</b> سنة - ربح يومي 50$ - عائد 580%<br>💎 <b>خطة 5000$:</b> سنتين - ربح يومي 110$ - عائد 604%<br><br>⚠️ <b>هام:</b> الاشتراك في الشراكة هو <b>الشرط الأساسي</b> للاستثمار في القطاعات.' },
+            { q: 'ما هي القطاعات المتاحة للاستثمار؟', a: 'نوفر 25 قطاعاً استثمارياً:<br><br>📊 <b>أسبوعية (7 أيام):</b> النفط والغاز، الطاقة الشمسية، الموارد المائية، الغاز الطبيعي<br>📈 <b>شهرية (30 يوماً):</b> النقل البحري، الطيران، البناء، الرعاية الصحية، الاتصالات، التجارة الإلكترونية، التكنولوجيا، السيارات، الأمن السيبراني، الزراعة الذكية، النقل الكهربائي<br>💎 <b>سنوية (365 يوماً):</b> التعدين، الخدمات المالية، المحافظ، الألماس، العقارات، الذكاء الاصطناعي، الطاقة المتجددة، الفضاء، الروبوتات، التكنولوجيا الحيوية<br><br>عوائد تبدأ من 7% وتصل إلى 380%.' },
+            { q: 'كيف يتم حساب العائد على الاستثمار؟', a: 'العائد يحسب بناءً على:<br><br>📊 <b>أدنى عائد:</b> الحد الأدنى المضمون للقطاع<br>📈 <b>عائد متوسط:</b> حسب أداء السوق خلال الفترة<br>🚀 <b>أعلى عائد:</b> في أفضل ظروف السوق<br><br>يضاف العائد إلى حسابك <b>شهرياً</b> أو حسب مدة القطاع. يمكنك متابعة أرباحك من <b>صفحة المحفظة</b>.' },
+            { q: 'هل يمكنني الاستثمار في أكثر من قطاع؟', a: 'نعم، يمكنك الاستثمار في:<br><br>• قطاع <b>واحد</b> من الفئة <b>الأسبوعية</b><br>• قطاع <b>واحد</b> من الفئة <b>الشهرية</b><br>• قطاع <b>واحد</b> من الفئة <b>السنوية</b><br><br>يعني يمكنك الاستثمار في <b>3 قطاعات</b> كحد أقصى في نفس الوقت.' },
+            { q: 'ماذا لو حاولت الاستثمار قبل استيفاء الشروط؟', a: 'ستظهر لك رسالة <b>"غير مؤهل للاستثمار"</b> مع توضيح الشروط الناقصة:<br><br>• ❌ لم تشترك في برنامج الشراكة بعد<br>• ❌ لم يمر 30 يوماً على تسجيلك<br>• ❌ رصيدك أقل من الحد الأدنى للقطاع<br><br>يمكنك الضغط على <b>"الذهاب إلى صفحة الشراكة"</b> للاشتراك فوراً.' }
+          ]
+        },
+        account: {
+          title: '👤 الحساب والتوثيق',
+          list: [
+            { q: 'كيف أسجل حساباً جديداً؟', a: 'خطوات التسجيل بسيطة:<br><br>1. اذهب إلى صفحة <b>تسجيل الدخول</b><br>2. اضغط <b>"إنشاء حساب جديد"</b><br>3. أدخل <b>الاسم الكامل</b> والبريد الإلكتروني<br>4. اختر <b>كلمة مرور</b> قوية (6 أحرف على الأقل)<br>5. اضغط <b>"إنشاء الحساب"</b><br><br>بعد التسجيل، يمكنك البدء فوراً.' },
+            { q: 'كيف أوثق حسابي؟', a: 'لتوثيق حسابك:<br><br>1. اذهب إلى <b>الملف الشخصي</b><br>2. اضغط على قسم <b>"توثيق الحساب"</b><br>3. ارفع <b>صورة الهوية</b> أو جواز السفر<br>4. انتظر <b>24-48 ساعة</b> للمراجعة<br><br>🟡 <b>قيد المراجعة:</b> جاري فحص الوثيقة<br>🟢 <b>مقبول:</b> تم توثيق حسابك<br>🔴 <b>مرفوض:</b> يرجى إعادة الرفع' },
+            { q: 'نسيت كلمة المرور، ماذا أفعل؟', a: 'لا تقلق!<br><br>1. اذهب إلى صفحة <b>تسجيل الدخول</b><br>2. اضغط <b>"نسيت كلمة المرور؟"</b><br>3. أدخل <b>بريدك الإلكتروني</b><br>4. سيصلك <b>رابط إعادة تعيين</b><br>5. اضغط الرابط واختر كلمة مرور جديدة<br><br>الرابط صالح لمدة ساعة واحدة.' }
+          ]
+        },
+        referral: {
+          title: '👥 الإحالات والمكافآت',
+          list: [
+            { q: 'كيف تعمل دعوة الأصدقاء؟', a: 'برنامج الإحالات يتيح لك ربح عمولات:<br><br>1. انسخ <b>رابط الدعوة</b> الخاص بك<br>2. شاركه مع أصدقائك<br>3. عند <b>تسجيلهم واستثمارهم</b> عبر رابطك<br>4. تحصل على <b>10% عمولة</b> من قيمة اشتراكهم<br>5. و <b>5%</b> من تجديد اشتراكاتهم<br><br>لا يوجد حد أقصى لعدد المدعوين!' },
+            { q: 'ما هي جائزة الحوت؟', a: '🏆 <b>جائزة الحوت الكبرى: $1,000</b><br><br>الشروط:<br>• دعوة <b>20 شخصاً</b><br>• يسجلون في <b>عقود شراكة من فئة 3 أشهر</b> كحد أدنى<br>• يتم منحك المكافأة فور اكتمال العدد<br><br>بالإضافة إلى عمولاتك العادية من كل مشترك!' },
+            { q: 'ما هي المكافآت الأخرى المتاحة؟', a: 'نوفر باقة متنوعة من المكافآت:<br><br>💎 <b>مكافأة الإيداع الأول:</b> +10% حتى 500$<br>🤝 <b>مكافأة الإحالة:</b> 50$ لكل صديق<br>👑 <b>مكافأة VIP:</b> 200$ عند وصول استثماراتك لـ 10,000$<br>🥇 <b>المتصدر الشهري:</b> 500$ للمركز الأول<br>📅 <b>مكافأة الوفاء:</b> 100$ لكل 6 أشهر<br>⭐ <b>مكافأة التميز:</b> 250$ عند الاستثمار في 5 قطاعات' }
+          ]
+        },
+        security: {
+          title: '🔒 الأمان والخصوصية',
+          list: [
+            { q: 'هل المنصة آمنة؟', a: 'نعم، الأمان هو أولويتنا القصوى:<br><br>🔐 <b>تشفير SSL/TLS:</b> جميع البيانات مشفرة<br>🛡️ <b>حماية DDoS:</b> حماية من الهجمات<br>🔑 <b>مصادقة ثنائية:</b> طبقة حماية إضافية<br>📁 <b>نسخ احتياطي:</b> يومي وتلقائي<br>🕵️ <b>مراقبة 24/7:</b> فريق أمني متخصص<br><br>جميع المعاملات المالية تخضع لإجراءات تدقيق صارمة.' },
+            { q: 'هل تشاركون بياناتي مع أطراف أخرى؟', a: '❌ <b>لا على الإطلاق!</b><br><br>• بياناتك الشخصية <b>سرية تماماً</b><br>• لا نبيع أو نشارك بياناتك مع أي طرف ثالث<br>• نلتزم <b>بسياسة الخصوصية</b> العالمية<br>• بيانات الدفع تشفر بالكامل<br><br>يمكنك مراجعة سياسة الخصوصية كاملة من خلال موقعنا.' }
+          ]
+        },
+        about: {
+          title: '🏢 عن الشركة',
+          list: [
+            { q: 'من هي EOT PARTNERS؟', a: 'EOT PARTNERS هي <b>شركة إدارة واستثمار مالي متكاملة</b> تأسست عام 2020.<br><br>نقدم خدمات متقدمة في:<br>• إدارة رؤوس الأموال<br>• تطوير الحلول الاستثمارية<br>• تحليل الأسواق المالية العالمية<br>• بناء محافظ استثمارية متنوعة<br><br>ندير أصولاً تتجاوز <b>12.8 مليار دولار</b> لأكثر من <b>250,000 مستثمر</b> حول العالم.' },
+            { q: 'ما هي آلية العمل لديكم؟', a: 'آلية عملنا تتكون من 4 مراحل:<br><br>1️⃣ <b>فهم الأهداف:</b> دراسة أهدافك المالية ومستوى المخاطر<br>2️⃣ <b>بناء الخطة:</b> تصميم خطة استثمارية مخصصة<br>3️⃣ <b>التنفيذ:</b> تطبيق الخطة من قبل فريق متخصص<br>4️⃣ <b>المتابعة:</b> تقارير دورية ومراجعة مستمرة<br><br>كل هذا يتم بشفافية كاملة مع شرح لكل قرار.' },
+            { q: 'ما هي خلفية فريق العمل؟', a: 'يتكون فريقنا من <b>أكثر من 200 خبير ومتخصص</b> في:<br><br>📊 <b>85+ محلل مالي</b> - تحليل الأسواق العالمية<br>💼 <b>45+ مدير أصول</b> - إدارة المحافظ<br>🛡️ <b>35+ خبير مخاطر</b> - استراتيجيات الحماية<br>💻 <b>50+ مطور أنظمة</b> - تطوير النماذج المالية<br><br>نمتلك مكاتب في <b>12 دولة</b> حول العالم.' }
+          ]
+        },
+        noanswer: {
+          title: '💬 التواصل مع الدعم',
+          list: [
+            { q: 'أريد التحدث مع ممثل الدعم', a: 'contact' }
+          ]
+        }
+      }
+    }
+  };
+  chatData.en = {
+    welcome: 'Welcome to EOT PARTNERS!<br><br>We are an integrated financial management and investment company providing advanced capital management and customized investment solutions. How can we help you today?',
+    categories: [
+      { icon: '💰', title: 'Deposit & Withdrawal', id: 'deposit' },
+      { icon: '📈', title: 'Investment & Partnership', id: 'invest' },
+      { icon: '👤', title: 'Account & Verification', id: 'account' },
+      { icon: '👥', title: 'Referrals & Rewards', id: 'referral' },
+      { icon: '🔒', title: 'Security & Privacy', id: 'security' },
+      { icon: '🏢', title: 'About the Company', id: 'about' },
+      { icon: '💬', title: 'I didn\'t find my answer', id: 'noanswer' }
+    ],
+    back: '↩️ Back to main menu',
+    questions: {
+      deposit: {
+        title: '💰 Deposit & Withdrawal',
+        list: [
+          { q: 'What deposit methods are available?', a: 'We offer multiple deposit methods for clients worldwide:<br><br>💳 <b>Credit/Debit Cards:</b> Visa, Mastercard - Instant<br>🏦 <b>Bank Transfer:</b> SWIFT, IBAN, SEPA - 1-3 business days<br>💰 <b>E-Wallets:</b> PayPal, Skrill, Neteller, Payoneer - Instant<br>📱 <b>Apple Pay / Google Pay:</b> Fast mobile payment<br>🏢 <b>Bank Deposits:</b> Direct deposit at approved banks - 24h<br>📄 <b>Certified Cheques:</b> 3-5 business days<br>₿ <b>Cryptocurrency:</b> USDT, Bitcoin, Ethereum, BNB, XRP and more' },
+          { q: 'What withdrawal methods are available?', a: 'We offer multiple secure withdrawal methods:<br><br>🏦 <b>Bank Transfer:</b> SWIFT, IBAN, SEPA - 2-5 business days<br>💰 <b>E-Wallets:</b> PayPal, Skrill, Payoneer - 24h<br>💵 <b>USDT:</b> TRC20, ERC20, BEP20 - 24h<br>📱 <b>Apple Pay / Google Pay:</b> 24-48h<br><br>Minimum withdrawal: $100. Processing within 24 business hours.' },
+          { q: 'How long does a deposit take?', a: 'Deposit time by method:<br><br>💳 Cards: Instant (seconds)<br>💰 E-Wallets: Instant<br>₿ Crypto: After network confirmation (10-60 min)<br>🏦 Bank Transfer: 1-3 business days<br>📄 Cheques: 3-5 business days<br><br>You receive a notification once the amount is credited.' },
+          { q: 'What is the minimum deposit?', a: 'Minimum deposits by method:<br><br>💳 Cards: $50<br>💰 E-Wallets: $10<br>🏦 Bank Transfer: $500<br>₿ USDT: 10 USDT<br>₿ Bitcoin: 0.0005 BTC<br><br>There is no maximum deposit limit.' },
+          { q: 'What are deposit and withdrawal fees?', a: '✅ <b>Deposit:</b> Completely free for all methods.<br><br>💲 <b>Withdrawal Fees:</b><br>• Bank Transfer: $25 (flat)<br>• E-Wallets: 2% of amount<br>• USDT: Blockchain network fees only<br>• Apple/Google Pay: 1.5%<br><br>Fees are clearly displayed before confirming any transaction.' },
+          { q: 'How do I confirm my deposit?', a: 'After completing a successful deposit:<br><br>1. The amount appears in your <b>transaction history</b><br>2. You receive an <b>instant notification</b><br>3. Your <b>wallet balance</b> updates automatically<br>4. Check your <b>wallet page</b> to verify<br><br>If delayed, please contact technical support.' },
+          { q: 'Can I deposit in currencies other than USD?', a: 'Yes, we accept multiple currencies:<br><br>💵 <b>Fiat:</b> USD, EUR, GBP, CHF, AUD, CAD<br>₿ <b>Crypto:</b> USDT, BTC, ETH, BNB, XRP, SOL, ADA<br><br>The amount is automatically converted to USD equivalent at the exchange rate at the time of deposit.' }
+        ]
+      },
+      invest: {
+        title: '📈 Investment & Partnership',
+        list: [
+          { q: 'How do I start investing?', a: 'To start investing, you must first:<br><br>1. <b>Register</b> and verify your account<br>2. <b>Subscribe to a Partnership Plan</b> (one of seven plans)<br>3. <b>Wait 30 days</b> from registration date<br>4. <b>Deposit</b> the appropriate amount<br>5. Go to the <b>Investment page</b> and choose a sector<br><br>⚠️ <b>Important:</b> You cannot invest before meeting partnership requirements.' },
+          { q: 'What are the eligibility requirements for investment?', a: 'You must meet <b>3 essential conditions</b> before investing:<br><br>1️⃣ <b>Active Partnership Subscription</b><br>You must have an active subscription in one of the seven partnership plans.<br><br>2️⃣ <b>Active Member for 30 Days</b><br>At least 30 days must have passed since your registration date.<br><br>3️⃣ <b>Sufficient Wallet Balance</b><br>Your wallet must contain the minimum required for the sector.<br><br>✅ Once all three conditions are met, you can invest immediately.' },
+          { q: 'What partnership plans are available?', a: 'We offer 7 flexible partnership plans:<br><br>💎 <b>$100 Plan:</b> 1 Month - Daily Profit $1 - 130% Return<br>💎 <b>$180 Plan:</b> 1 Month - Daily Profit $2 - 133% Return<br>💎 <b>$200 Plan:</b> 3 Months - Daily Profit $6 - 370% Return ⭐ Most Popular<br>💎 <b>$450 Plan:</b> 3 Months - Daily Profit $17 - 400% Return<br>💎 <b>$1,300 Plan:</b> 6 Months - Daily Profit $40 - 515% Return<br>💎 <b>$2,100 Plan:</b> 1 Year - Daily Profit $50 - 580% Return<br>💎 <b>$5,000 Plan:</b> 2 Years - Daily Profit $110 - 604% Return<br><br>⚠️ <b>Important:</b> Partnership subscription is <b>mandatory</b> before investing in sectors.' },
+          { q: 'What sectors are available for investment?', a: 'We offer 25 investment sectors:<br><br>📊 <b>Weekly (7 days):</b> Oil & Gas, Solar Energy, Water Resources, Natural Gas<br>📈 <b>Monthly (30 days):</b> Maritime Shipping, Aviation, Construction, Healthcare, Telecom, E-Commerce, Technology, Automotive, Cybersecurity, Smart Agriculture, Electric Transport<br>💎 <b>Yearly (365 days):</b> Mining, Financial Services, Portfolios, Diamonds, Real Estate, AI, Renewable Energy, Space, Robotics, Biotechnology<br><br>Returns start from 7% up to 380%.' },
+          { q: 'How is investment return calculated?', a: 'Returns are calculated based on:<br><br>📊 <b>Low Return:</b> Guaranteed minimum for the sector<br>📈 <b>Mid Return:</b> Based on market performance<br>🚀 <b>High Return:</b> Under best market conditions<br><br>Returns are added <b>monthly</b> or per sector duration. Track profits from your <b>wallet page</b>.' },
+          { q: 'Can I invest in more than one sector?', a: 'Yes, you can invest in:<br><br>• <b>One</b> sector from the <b>Weekly</b> category<br>• <b>One</b> sector from the <b>Monthly</b> category<br>• <b>One</b> sector from the <b>Yearly</b> category<br><br>Meaning you can invest in a maximum of <b>3 sectors</b> at the same time.' },
+          { q: 'What if I try to invest before meeting the requirements?', a: 'You will see a <b>"Not Eligible"</b> message showing missing conditions:<br><br>• ❌ Not subscribed to partnership program<br>• ❌ 30 days have not passed since registration<br>• ❌ Balance is below the sector minimum<br><br>You can click <b>"Go to Partnership Page"</b> to subscribe immediately.' }
+        ]
+      },
+      account: {
+        title: '👤 Account & Verification',
+        list: [
+          { q: 'How do I register a new account?', a: 'Simple registration steps:<br><br>1. Go to the <b>Login page</b><br>2. Click <b>"Create New Account"</b><br>3. Enter your <b>full name</b> and email<br>4. Choose a strong <b>password</b> (min 6 characters)<br>5. Click <b>"Create Account"</b><br><br>You can start immediately after registration.' },
+          { q: 'How do I verify my account?', a: 'To verify your account:<br><br>1. Go to <b>Profile</b><br>2. Click <b>"Account Verification"</b><br>3. Upload your <b>ID or Passport</b><br>4. Wait <b>24-48 hours</b> for review<br><br>🟡 <b>Pending:</b> Document under review<br>🟢 <b>Approved:</b> Account verified<br>🔴 <b>Rejected:</b> Please re-upload' },
+          { q: 'I forgot my password, what do I do?', a: 'Don\'t worry!<br><br>1. Go to the <b>Login page</b><br>2. Click <b>"Forgot Password?"</b><br>3. Enter your <b>email address</b><br>4. You will receive a <b>reset link</b><br>5. Click the link and choose a new password<br><br>The link is valid for one hour.' }
+        ]
+      },
+      referral: {
+        title: '👥 Referrals & Rewards',
+        list: [
+          { q: 'How does inviting friends work?', a: 'Our referral program lets you earn commissions:<br><br>1. Copy your <b>referral link</b><br>2. Share it with friends<br>3. When they <b>register and invest</b> through your link<br>4. You earn <b>10% commission</b> on their subscription<br>5. And <b>5%</b> on their renewals<br><br>No maximum limit on invites!' },
+          { q: 'What is the Whale Prize?', a: '🏆 <b>Grand Whale Prize: $1,000</b><br><br>Requirements:<br>• Invite <b>20 people</b><br>• They register in <b>3-month partnership contracts</b> minimum<br>• Reward granted once count is complete<br><br>Plus your regular commissions from each referral!' },
+          { q: 'What other rewards are available?', a: 'We offer a variety of rewards:<br><br>💎 <b>First Deposit Bonus:</b> +10% up to $500<br>🤝 <b>Referral Bonus:</b> $50 per friend<br>👑 <b>VIP Bonus:</b> $200 when investments reach $10,000<br>🥇 <b>Monthly Leader:</b> $500 for first place<br>📅 <b>Loyalty Bonus:</b> $100 every 6 months<br>⭐ <b>Excellence Bonus:</b> $250 for 5 sector investments' }
+        ]
+      },
+      security: {
+        title: '🔒 Security & Privacy',
+        list: [
+          { q: 'Is the platform secure?', a: 'Yes, security is our top priority:<br><br>🔐 <b>SSL/TLS Encryption:</b> All data encrypted<br>🛡️ <b>DDoS Protection:</b> Attack prevention<br>🔑 <b>2FA:</b> Additional security layer<br>📁 <b>Daily Backups:</b> Automatic<br>🕵️ <b>24/7 Monitoring:</b> Dedicated security team<br><br>All financial transactions undergo strict audit procedures.' },
+          { q: 'Do you share my data with third parties?', a: '❌ <b>Absolutely not!</b><br><br>• Your personal data is <b>completely confidential</b><br>• We do not sell or share data with any third party<br>• We comply with <b>global privacy policies</b><br>• Payment data is fully encrypted<br><br>Review our full Privacy Policy on our website.' }
+        ]
+      },
+      about: {
+        title: '🏢 About the Company',
+        list: [
+          { q: 'Who is EOT PARTNERS?', a: 'EOT PARTNERS is an <b>integrated financial management and investment company</b> established in 2020.<br><br>We provide advanced services in:<br>• Capital management<br>• Investment solution development<br>• Global financial market analysis<br>• Diversified portfolio construction<br><br>We manage over <b>$12.8 billion</b> in assets for <b>250,000+ investors</b> worldwide.' },
+          { q: 'How does your work process function?', a: 'Our work process has 4 stages:<br><br>1️⃣ <b>Understand Goals:</b> Study your financial objectives and risk level<br>2️⃣ <b>Build Plan:</b> Design a customized investment plan<br>3️⃣ <b>Execute:</b> Implement the plan through our specialist team<br>4️⃣ <b>Monitor:</b> Regular reports and continuous review<br><br>All with complete transparency and explanation of every decision.' },
+          { q: 'What is the background of your team?', a: 'Our team consists of <b>200+ experts and specialists</b> in:<br><br>📊 <b>85+ Financial Analysts</b> - Global market analysis<br>💼 <b>45+ Asset Managers</b> - Portfolio management<br>🛡️ <b>35+ Risk Experts</b> - Protection strategies<br>💻 <b>50+ System Developers</b> - Financial model development<br><br>We have offices in <b>12 countries</b> worldwide.' }
+        ]
+      },
+      noanswer: {
+        title: '💬 Contact Support',
+        list: [
+          { q: 'I want to speak with a support agent', a: 'contact' }
+        ]
+      }
+    }
+  };
+
+  function getTime() {
+    const n = new Date();
+    return n.getHours().toString().padStart(2,'0') + ':' + n.getMinutes().toString().padStart(2,'0');
+  }
+
+  function showTyping(duration) {
+    return new Promise(resolve => {
+      document.getElementById('typingIndicator').style.display = 'flex';
+      document.getElementById('chatBody').scrollTop = document.getElementById('chatBody').scrollHeight;
+      setTimeout(() => {
+        document.getElementById('typingIndicator').style.display = 'none';
+        resolve();
+      }, duration);
+    });
+  }
+
+  function addMsg(text, type) {
+    const b = document.getElementById('chatBody');
+    const div = document.createElement('div');
+    div.className = 'msg ' + (type || 'received');
+    div.innerHTML = text + '<div class="msg-time">' + getTime() + '</div>';
+    const typing = document.getElementById('typingIndicator');
+    b.insertBefore(div, typing);
+    b.scrollTop = b.scrollHeight;
+  }
+
+  function addOptions(html) {
+    document.getElementById('quickOptions').innerHTML = html;
+    document.getElementById('quickOptions').classList.remove('hidden');
+    document.getElementById('contactForm').classList.add('hidden');
+  }
+
+  function showContactForm() {
+    document.getElementById('quickOptions').classList.add('hidden');
+    document.getElementById('contactForm').classList.remove('hidden');
+  }
+
+  async function init() {
+    addMsg('<b>🌍</b> Please select your language | الرجاء اختيار اللغة');
+    addOptions(`
+      <button class="option-btn" onclick="selectLang('ar')"><span class="opt-icon">🇸🇦</span> العربية</button>
+      <button class="option-btn" onclick="selectLang('en')"><span class="opt-icon">🇬🇧</span> English</button>
+    `);
+  }
+
+  async function selectLang(lang) {
+    chatLang = lang;
+    const data = chatData[lang];
+    
+    addMsg(lang === 'ar' ? '🇸🇦 العربية' : '🇬🇧 English', 'sent');
+    await showTyping(1200);
+    addMsg(data.welcome);
+    showCategories();
+  }
+
+  function showCategories() {
+    const data = chatData[chatLang];
+    document.getElementById('contactForm').classList.add('hidden');
+    document.getElementById('quickOptions').classList.remove('hidden');
+    
+    let html = '';
+    data.categories.forEach(cat => {
+      html += `<button class="option-btn" onclick="showQuestions('${cat.id}')"><span class="opt-icon">${cat.icon}</span> ${cat.title}</button>`;
+    });
+    addOptions(html);
+  }
+
+  async function showQuestions(catId) {
+    const data = chatData[chatLang];
+    const cat = data.questions[catId];
+    
+    addMsg(cat.title, 'sent');
+    await showTyping(800);
+    
+    let html = `<button class="option-btn back-option" onclick="showCategories()">${data.back}</button>`;
+    cat.list.forEach((item, i) => {
+      html += `<button class="option-btn" onclick="showAnswer('${catId}', ${i})"><span class="opt-icon">❓</span> ${item.q}</button>`;
+    });
+    addOptions(html);
+  }
+
+  async function showAnswer(catId, index) {
+    const data = chatData[chatLang];
+    const item = data.questions[catId].list[index];
+    
+    addMsg(item.q, 'sent');
+    
+    if (item.a === 'contact') {
+      await showTyping(1000);
+      addMsg(chatLang === 'ar' ? 'سنقوم بتوصيلك مع فريق الدعم. يرجى ترك رسالتك أدناه وسنرد عليك في أقرب وقت ممكن.' : 'We will connect you with our support team. Please leave your message below and we will respond as soon as possible.');
+      showContactForm();
+      return;
+    }
+    
+    document.getElementById('quickOptions').innerHTML = '';
+    await showTyping(1800);
+    addMsg(item.a);
+    showQuestions(catId);
+  }
+
+  async function submitContact() {
+    const name = document.getElementById('cfName').value.trim();
+    const email = document.getElementById('cfEmail').value.trim();
+    const message = document.getElementById('cfMessage').value.trim();
+
+    if (!name || !email || !message) {
+      alert(chatLang === 'ar' ? 'يرجى ملء جميع الحقول' : 'Please fill all fields');
+      return;
+    }
+
+    try {
+      await firebase.firestore().collection('support_messages').add({
+        from: name, email: email, message: message,
+        date: new Date().toLocaleDateString(chatLang === 'ar' ? 'ar-SA' : 'en-US'),
+        createdAt: new Date().toISOString()
+      });
+    } catch(e) {
+      const messages = JSON.parse(localStorage.getItem('eot_support_messages') || '[]');
+      messages.push({ from: name, email: email, message: message, date: new Date().toLocaleDateString(chatLang === 'ar' ? 'ar-SA' : 'en-US') });
+      localStorage.setItem('eot_support_messages', JSON.stringify(messages));
+    }
+emailjs.send("service_74qw0wt", "template_nuutvfi", {
+  type: 'دعم - رسالة من المحادثة',
+  name: name,
+  email: email,
+  amount: message,
+  date: new Date().toLocaleDateString('ar-SA')
+}).catch(err => console.log('EmailJS error:', err));
+
+    addMsg(chatLang === 'ar' ? '✅ تم إرسال رسالتك بنجاح! سنرد عليك في أقرب وقت ممكن.' : '✅ Your message has been sent successfully! We will reply as soon as possible.');
+    document.getElementById('cfName').value = '';
+    document.getElementById('cfEmail').value = '';
+    document.getElementById('cfMessage').value = '';
+    document.getElementById('contactForm').classList.add('hidden');
+    showCategories();
+  }
+
+  window.onload = function() { init(); };
+</script>
+
+</body>
+</html>
